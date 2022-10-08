@@ -19,6 +19,7 @@
 
 #define BUFFSIZE 1024
 
+
 void errck()
 {
 	if (errno != 0)
@@ -34,11 +35,16 @@ int main(int argc, char **argv)
 	int sockfd, result;
 	char buff[BUFFSIZE];
 	char *url = argv[1];
-	char *ip = argv[2];
-	char *port = argv[3];
-	struct sockaddr_in host_info;
+	char ip[32];
+	long port;
+	struct addrinfo hints, *res;
+	struct in_addr *addr;
 	SSL_CTX *ctx;
 	SSL *ssl;
+
+	/* Hists */
+	memset(&hints, 0, sizeof(hints)); 
+	hints.ai_family   = AF_INET;  
 
 	/* Create a TLS client context with a CA certificate */
 	ctx = SSL_CTX_new(TLS_client_method());
@@ -49,18 +55,22 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
+	/* Get host data */
+	char *protocol = strtok(url, ":");
+	url = strtok(NULL, "/");
+
+	getaddrinfo(url, protocol, &hints, &res);
+	errck();
+	getnameinfo(res->ai_addr, res->ai_addrlen, ip, sizeof(ip), NULL, 0, NI_NUMERICHOST);
+	port = ntohs(((struct sockaddr_in *)res->ai_addr)->sin_port);
+
 	/* Create a socket and SSL session */
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	errck();
 	puts("Socket created!");
 
-	/* Set the address and port of the server to connect to */
-	host_info.sin_family = AF_INET;
-	host_info.sin_port = htons(strtol(port, NULL, 10));
-	host_info.sin_addr.s_addr = inet_addr(ip);
-
 	/* Try to connect */
-	result = connect(sockfd, (struct sockaddr *)&host_info, sizeof(host_info));
+	result = connect(sockfd, res->ai_addr, res->ai_addrlen);
 	errck();
 	puts("Connected!");
 
@@ -76,7 +86,7 @@ int main(int argc, char **argv)
 	char *uri = strtok(url, "/");
 	uri = strtok(NULL, "/");
 
-	sprintf(buff, "GET /index.html HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", uri);
+	sprintf(buff, "GET / HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", url);
 	printf("\nCLIENT > %s\n", buff);
 	SSL_write(ssl, buff, strlen(buff) + 1);
 	memset(buff, 0, BUFFSIZE);
