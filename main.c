@@ -48,12 +48,6 @@ int main(int argc, char **argv)
 
 	/* Create a TLS client context with a CA certificate */
 	ctx = SSL_CTX_new(TLS_client_method());
-	result = SSL_CTX_use_certificate_file(ctx, "/cert.pem", SSL_FILETYPE_PEM);
-	if(result != 1)
-	{
-		puts("ERROR: certificate missing!");
-		return EXIT_FAILURE;
-	}
 
 	/* Get host data */
 	char *protocol = strtok(url, ":");
